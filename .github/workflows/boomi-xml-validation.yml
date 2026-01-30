@@ -1,0 +1,57 @@
+name: Boomi XML Validation
+
+on:
+  pull_request:
+    paths:
+      - "boomi-processes/**/*.xml"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  validate:
+    name: Validate Boomi process XMLs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Get changed XML files
+        id: changed
+        uses: tj-actions/changed-files@v47.0.1
+        with:
+          files: |
+            boomi-processes/**/*.xml
+
+      - name: Show changed files
+        run: |
+          echo "Changed XML files:"
+          printf '%s\n' "${{ steps.changed.outputs.all_changed_files }}"
+
+      - name: Validate changed Boomi XMLs
+        id: validate
+        if: steps.changed.outputs.any_changed == 'true'
+        run: |
+          python scripts/validate_boomi_xml.py ${{ steps.changed.outputs.all_changed_files }}
+        env:
+          # Also write to GitHub Step Summary
+          GITHUB_STEP_SUMMARY: ${{ github.step_summary }}
+
+      - name: No XML changes detected
+        if: steps.changed.outputs.any_changed != 'true'
+        run: |
+          echo "No boomi-processes/**/*.xml files changed; skipping validation."
+
+      - name: Post validation results to PR
+        if: always() && github.event_name == 'pull_request' && steps.changed.outputs.any_changed == 'true'
+        uses: marocchino/sticky-pull-request-comment@v2.9.1
+        with:
+          header: boomi-xml-validation
+          path: boomi-xml-validation-results.md
