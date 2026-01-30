@@ -33,15 +33,26 @@ jobs:
       - name: Show changed files
         run: |
           echo "Changed XML files:"
-          printf '%s\n' "${{ steps.changed.outputs.all_changed_files }}"
+          for f in ${{ steps.changed.outputs.all_changed_files }}; do
+            echo " - $f"
+          done
 
-      - name: Validate changed Boomi XMLs
+      - name: Run validation
         id: validate
         if: steps.changed.outputs.any_changed == 'true'
         run: |
+          # Always create a results file, even if validation fails
+          set +e
           python scripts/validate_boomi_xml.py ${{ steps.changed.outputs.all_changed_files }}
+          status=$?
+          if [ ! -f boomi-xml-validation-results.md ]; then
+            echo "## 🍫 Boomi XML Validation Results" > boomi-xml-validation-results.md
+            echo "" >> boomi-xml-validation-results.md
+            echo "**Status:** ❌ Validation failed (exit code $status) and no report was generated." >> boomi-xml-validation-results.md
+          fi
+          exit $status
         env:
-          # Also write to GitHub Step Summary
+          # Write to GitHub Step Summary
           GITHUB_STEP_SUMMARY: ${{ github.step_summary }}
 
       - name: No XML changes detected
