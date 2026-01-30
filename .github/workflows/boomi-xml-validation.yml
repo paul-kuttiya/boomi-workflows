@@ -37,11 +37,15 @@ jobs:
             echo " - $f"
           done
 
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r scripts/requirements.txt
+
       - name: Run validation
         id: validate
         if: steps.changed.outputs.any_changed == 'true'
         run: |
-          # Always create a results file, even if validation fails
           set +e
           python scripts/validate_boomi_xml.py ${{ steps.changed.outputs.all_changed_files }}
           status=$?
@@ -62,7 +66,7 @@ jobs:
 
       - name: Post validation results to PR
         if: always() && github.event_name == 'pull_request' && steps.changed.outputs.any_changed == 'true'
-        uses: marocchino/sticky-pull-request-comment@v2.9.1
+        uses: marocchino/sticky-pull-request-comment@v2.9.4
         with:
           header: boomi-xml-validation
           path: boomi-xml-validation-results.md
